@@ -1,14 +1,28 @@
-FROM node:22-alpine3.19
+FROM  node:17.0.1-bullseye-slim as builder
 
-WORKDIR  /fly
 
-COPY package.json .
+WORKDIR /fly
 
-RUN npm install
+RUN npm install -g @angular/cli@13
 
-COPY . /fly
+COPY package.json package-lock.json ./
+RUN npm ci
 
-EXPOSE 4200
+COPY . .
 
-CMD ["npm", "run","start"]
+FROM builder as dev-envs
 
+RUN <<EOF
+apt-get update
+apt-get install -y --no-install-recommends git
+EOF
+
+RUN <<EOF
+useradd -s /bin/bash -m vscode
+groupadd docker
+usermod -aG docker vscode
+EOF
+# install Docker tools (cli, buildx, compose)
+COPY --from=gloursdocker/docker / /
+
+CMD ["ng", "serve", "--host", "0.0.0.0"]
